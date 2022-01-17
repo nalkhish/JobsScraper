@@ -1,34 +1,64 @@
+import re
+import time
+import random
+from typing import List, Type
 
 import scrapy
 from scrapy_selenium import SeleniumRequest
-import re
+from scraper.scraper.exceptions import InvalidRequiredField
 
 from scraper.scraper.items import Job
+from scraper.scraper.serializers import (
+    BaseSerializer, 
+    SummarySerializer, 
+    CompanySerializer, SalarySerializer, TitleSerializer, LocationSerializer
+)
 
-class GradsunSpider(scrapy.Spider):
-    name = "gradsun_spider"
+class IndeedSpider(scrapy.Spider):
+    name = "indeed_spider"
     allowed_domains = ['indeed.com']
-    start_urls = ['https://ca.indeed.com/jobs?q=software%20developer']
+    field_classes: List[Type[BaseSerializer]] = [
+        SummarySerializer,
+        TitleSerializer,
+        CompanySerializer,
+        SalarySerializer,
+        LocationSerializer
+    ]    
+    item_class = Job   
+
+    def get_item(self, *args, **kwargs):
+        return self.item_class(*args, **kwargs)
 
     def start_requests(self):
-        for url in self.start_urls:
-            yield SeleniumRequest(url=url, wait_time=10, callback=self.parse)
+        start_urls = [
+            (
+                "https://ca.indeed.com/jobs?as_and=software%20developer"
+                "&as_phr&as_any=python%20typescript%20javascript%20React.js"
+                "&as_not&as_ttl&as_cmp&jt=all&st&salary=%2470k-150k&fromage=15"
+                f"&limit=50&start={start}&sort=date&psf=advsrch&from=advancedsearch"
+            )
+            for start in [0,] # [0, 50, 100, 150, 200, 250]
+        ]        
+
+        for url in start_urls:
+            time.sleep(random.randrange(60,600))
+            yield SeleniumRequest(url=url, callback=self.parse)
 
     def parse(self, response):
         SET_SELECTOR = 'td .resultContent'
         for section in response.selector.css(SET_SELECTOR):
-            item = Job()
+            job = self.get_item()
             try:
-                item['title'] = re.search('title="(.+?)"', section.get()).group(1)
-                item['company'] = re.search('companyName">(.+?)<', section.get()).group(1)
-            except Exception as e:
-                # skip because it's important
+                for field in self.field_classes:
+                    try:
+                        serializer = field(data=section.get())
+                        job[field.name] = serializer.validated_data
+                    except Exception as e:
+                        if field.required:
+                            raise InvalidRequiredField
+            except InvalidRequiredField:
+                # skip job when parsing required field produces an exception
                 continue
-            
-            try:
-                item['salary'] = re.search('salary-snippet"><span>(.+?)<', section.get()).group(1)
-            except:
-                # yield it because it's not important
+            except Exception as e:
                 pass
-
-            yield item
+            yield job
