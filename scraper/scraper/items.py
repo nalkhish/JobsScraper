@@ -8,4 +8,5 @@ class Job(scrapy.Item):
     title = scrapy.Field()
     salary = scrapy.Field()
     location = scrapy.Field()
+    details = scrapy.Field()
 

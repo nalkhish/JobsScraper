@@ -9,7 +9,8 @@ from scraper.scraper.exceptions import InvalidRequiredField
 
 from scraper.scraper.items import Job
 from scraper.scraper.serializers import (
-    BaseSerializer, 
+    BaseSerializer,
+    DetailsSerializer, 
     SummarySerializer, 
     CompanySerializer, SalarySerializer, TitleSerializer, LocationSerializer
 )
@@ -22,7 +23,8 @@ class IndeedSpider(scrapy.Spider):
         TitleSerializer,
         CompanySerializer,
         SalarySerializer,
-        LocationSerializer
+        LocationSerializer,
+        DetailsSerializer
     ]    
     item_class = Job   
 
@@ -41,11 +43,11 @@ class IndeedSpider(scrapy.Spider):
         ]        
 
         for url in start_urls:
-            time.sleep(random.randrange(60,600))
+            # time.sleep(random.randrange(60,600))
             yield SeleniumRequest(url=url, callback=self.parse)
 
     def parse(self, response):
-        SET_SELECTOR = 'td .resultContent'
+        SET_SELECTOR = 'div.slider_item'
         for section in response.selector.css(SET_SELECTOR):
             job = self.get_item()
             try:

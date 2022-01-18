@@ -25,7 +25,7 @@ class BaseSerializer(SerializerInterface):
         super().__init__(*args, **kwargs)
     
     def validate(self, data):
-        match = re.search(self.regex, data)
+        match = re.search(self.regex, data, re.DOTALL)
         if match:
             val = match.group(getattr(self,"regex_group", 1))
         else:
@@ -89,3 +89,16 @@ class LocationSerializer(BaseSerializer):
     required = False
     addit_parser = None
 
+
+class DetailsSerializer(BaseSerializer):
+    """Unfortunately, this only includes the 1-2 bullet points in the tiny card
+    
+    Information in the larger card needs to be accessed using the h2 title's nested link,
+    but this link does not appear even if using selenium driver to scroll.
+    """
+
+    name = "details"
+    regex = 'job-snippet(.+?)</div'
+    regex_group = 1
+    required = False
+    addit_parser = None
